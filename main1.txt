@@ -1,0 +1,233 @@
+﻿#include <SDL.h>
+#include <SDL_image.h>
+#include <SDL_ttf.h>
+#include <iostream>
+#include <vector>
+#include <string>
+
+bool init(SDL_Window*& window, SDL_Renderer*& renderer);
+void close(SDL_Window*& window, SDL_Renderer*& renderer, TTF_Font*& font);
+
+enum GameState {
+    MAIN_MENU,
+    PLAY_GAME,
+    INSTRUCTIONS,
+    QUIT_GAME
+};
+
+struct Question {
+    std::string text;  // Nội dung câu hỏi
+    bool answer;       // Đáp án: true = đúng, false = sai
+};
+
+void renderText(SDL_Renderer* renderer, TTF_Font* font, const std::string& text, SDL_Color color, int x, int y);
+
+int main(int argc, char* argv[]) {
+    // Khởi tạo SDL
+    SDL_Window* window = nullptr;
+    SDL_Renderer* renderer = nullptr;
+    TTF_Font* font = nullptr;
+
+    if (!init(window, renderer)) {
+        std::cerr << "Khởi tạo SDL thất bại!" << std::endl;
+        return -1;
+    }
+
+    font = TTF_OpenFont("C:\\Users\\admin\\source\\repos\\GameAkinator\\GameAkinator\\x64\\ARLRDBD.ttf", 24);
+    if (!font) {
+        std::cerr << "Không thể tải font: " << TTF_GetError() << std::endl;
+        close(window, renderer, font);
+        return -1;
+    }
+
+    // Tải hình nền
+    SDL_Texture* backgroundTexture = IMG_LoadTexture(renderer, "C:\\Users\\admin\\source\\repos\\GameAkinator\\GameAkinator\\x64\\Debug\\background3.jpg");
+    if (!backgroundTexture) {
+        std::cerr << "Không thể tải hình ảnh nền: " << IMG_GetError() << std::endl;
+        close(window, renderer, font);
+        return -1;
+    }
+
+    // Tải các hình ảnh nút
+    SDL_Texture* startButtonTexture = IMG_LoadTexture(renderer, "C:\\Users\\admin\\source\\repos\\GameAkinator\\GameAkinator\\x64\\Debug\\st.png");
+    SDL_Texture* instructionsButtonTexture = IMG_LoadTexture(renderer, "C:\\Users\\admin\\source\\repos\\GameAkinator\\GameAkinator\\x64\\Debug\\ht.png");
+    SDL_Texture* quitButtonTexture = IMG_LoadTexture(renderer, "C:\\Users\\admin\\source\\repos\\GameAkinator\\GameAkinator\\x64\\Debug\\ex.png");
+    SDL_Texture* trueButtonTexture = IMG_LoadTexture(renderer, "C:\\Users\\admin\\source\\repos\\GameAkinator\\GameAkinator\\x64\\Debug\\ex.png");
+    SDL_Texture* falseButtonTexture = IMG_LoadTexture(renderer, "C:\\Users\\admin\\source\\repos\\GameAkinator\\GameAkinator\\x64\\Debug\\ex.png");
+
+    if (!startButtonTexture || !instructionsButtonTexture || !quitButtonTexture ||
+        !trueButtonTexture || !falseButtonTexture) {
+        std::cerr << "Không thể tải các hình ảnh nút: " << IMG_GetError() << std::endl;
+        close(window, renderer, font);
+        return -1;
+    }
+
+    // Danh sách câu hỏi
+    std::vector<Question> questions = {
+        {"Trái đất hình tròn?", true},
+        {"Mặt trời quay quanh trái đất?", false},
+        {"Nước là hợp chất hóa học H2O?", true}
+    };
+
+    // Tọa độ các nút
+    int currentQuestionIndex = 0;
+    GameState currentState = MAIN_MENU;
+    bool quit = false;
+
+    SDL_Rect startButton = { 48, 400, 245, 190 };
+    SDL_Rect instructionsButton = { 290, 400, 245, 190 };
+    SDL_Rect quitButton = { 530, 400, 245, 190 };
+
+    SDL_Rect trueButton = { 300, 400, 100, 150 };
+    SDL_Rect falseButton = { 450, 400, 100, 150 };
+
+    SDL_Event e;
+
+    // Vòng lặp chính
+    while (!quit) {
+        while (SDL_PollEvent(&e) != 0) {
+            if (e.type == SDL_QUIT) {
+                quit = true;
+            }
+
+            if (currentState == MAIN_MENU && e.type == SDL_MOUSEBUTTONDOWN) {
+                int x, y;
+                SDL_GetMouseState(&x, &y);
+
+                if (x > startButton.x && x < startButton.x + startButton.w &&
+                    y > startButton.y && y < startButton.y + startButton.h) {
+                    currentState = PLAY_GAME;
+                }
+
+                if (x > instructionsButton.x && x < instructionsButton.x + instructionsButton.w &&
+                    y > instructionsButton.y && y < instructionsButton.y + instructionsButton.h) {
+                    currentState = INSTRUCTIONS;
+                }
+
+                if (x > quitButton.x && x < quitButton.x + quitButton.w &&
+                    y > quitButton.y && y < quitButton.y + quitButton.h) {
+                    quit = true;
+                }
+            }
+            else if (currentState == PLAY_GAME && e.type == SDL_MOUSEBUTTONDOWN) {
+                int x, y;
+                SDL_GetMouseState(&x, &y);
+
+                if (x > trueButton.x && x < trueButton.x + trueButton.w &&
+                    y > trueButton.y && y < trueButton.y + trueButton.h) {
+                    if (questions[currentQuestionIndex].answer) {
+                        std::cout << "Đúng!" << std::endl;
+                    }
+                    else {
+                        std::cout << "Sai!" << std::endl;
+                    }
+                    currentQuestionIndex++;
+                }
+
+                if (x > falseButton.x && x < falseButton.x + falseButton.w &&
+                    y > falseButton.y && y < falseButton.y + falseButton.h) {
+                    if (!questions[currentQuestionIndex].answer) {
+                        std::cout << "Đúng!" << std::endl;
+                    }
+                    else {
+                        std::cout << "Sai!" << std::endl;
+                    }
+                    currentQuestionIndex++;
+                }
+
+                if (currentQuestionIndex >= questions.size()) {
+                    currentState = MAIN_MENU;
+                    currentQuestionIndex = 0;
+                }
+            }
+            else if (currentState == INSTRUCTIONS && e.type == SDL_KEYDOWN) {
+                currentState = MAIN_MENU;
+            }
+        }
+
+        SDL_RenderClear(renderer);
+
+        if (currentState == MAIN_MENU) {
+            SDL_RenderCopy(renderer, backgroundTexture, NULL, NULL);
+            SDL_RenderCopy(renderer, startButtonTexture, NULL, &startButton);
+            SDL_RenderCopy(renderer, instructionsButtonTexture, NULL, &instructionsButton);
+            SDL_RenderCopy(renderer, quitButtonTexture, NULL, &quitButton);
+        }
+        else if (currentState == PLAY_GAME) {
+            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            SDL_RenderClear(renderer);
+
+            if (currentQuestionIndex < questions.size()) {
+                renderText(renderer, font, questions[currentQuestionIndex].text, { 0, 0, 0 }, 100, 100);
+                SDL_RenderCopy(renderer, trueButtonTexture, NULL, &trueButton);
+                SDL_RenderCopy(renderer, falseButtonTexture, NULL, &falseButton);
+            }
+        }
+        else if (currentState == INSTRUCTIONS) {
+            renderText(renderer, font, "Nhan phim bat ky de quay lai", { 0, 0, 0 }, 100, 100);
+        }
+
+        SDL_RenderPresent(renderer);
+    }
+
+    SDL_DestroyTexture(backgroundTexture);
+    SDL_DestroyTexture(startButtonTexture);
+    SDL_DestroyTexture(instructionsButtonTexture);
+    SDL_DestroyTexture(quitButtonTexture);
+    SDL_DestroyTexture(trueButtonTexture);
+    SDL_DestroyTexture(falseButtonTexture);
+    close(window, renderer, font);
+
+    return 0;
+}
+
+bool init(SDL_Window*& window, SDL_Renderer*& renderer) {
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        std::cerr << "Không thể khởi tạo SDL! SDL_Error: " << SDL_GetError() << std::endl;
+        return false;
+    }
+
+    if (TTF_Init() < 0) {
+        std::cerr << "Không thể khởi tạo SDL_ttf! TTF_Error: " << TTF_GetError() << std::endl;
+        return false;
+    }
+
+    window = SDL_CreateWindow("Game Menu", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 600, SDL_WINDOW_SHOWN);
+    if (!window) {
+        std::cerr << "Không thể tạo cửa sổ! SDL_Error: " << SDL_GetError() << std::endl;
+        return false;
+    }
+
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    if (!renderer) {
+        std::cerr << "Không thể tạo renderer! SDL_Error: " << SDL_GetError() << std::endl;
+        return false;
+    }
+
+    int imgFlags = IMG_INIT_PNG | IMG_INIT_JPG;
+    if (!(IMG_Init(imgFlags) & imgFlags)) {
+        std::cerr << "Không thể khởi tạo SDL_image! IMG_Error: " << IMG_GetError() << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+void close(SDL_Window*& window, SDL_Renderer*& renderer, TTF_Font*& font) {
+    if (font) TTF_CloseFont(font);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    TTF_Quit();
+    IMG_Quit();
+    SDL_Quit();
+}
+
+void renderText(SDL_Renderer* renderer, TTF_Font* font, const std::string& text, SDL_Color color, int x, int y) {
+    SDL_Surface* surface = TTF_RenderText_Solid(font, text.c_str(), color);
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_Rect destRect = { x, y, surface->w, surface->h };
+    SDL_FreeSurface(surface);
+
+    SDL_RenderCopy(renderer, texture, NULL, &destRect);
+    SDL_DestroyTexture(texture);
+}
